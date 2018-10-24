@@ -6,4 +6,4 @@ Comparing independent, partial pooling, and phylogenetically-informed ecological
 
 Citation:
 
-Rodríguez-Sánchez F (2018) R code for comparing splitting, lumping, partial pooling, and phylogenetically-informed ecological niche models (version 1.0). Zenodo. http://doi.org/10.5281/zenodo.1470856
+Rodríguez-Sánchez F (2018) R code for comparing splitting, lumping, partial pooling, and phylogenetically-informed ecological niche models (version 1.1). Zenodo. http://doi.org/10.5281/zenodo.1470855
