@@ -1,0 +1,353 @@
+---
+title: | 
+  | Supplemental Material for 
+  | 'Niche estimation above and below the species level'
+
+author:  
+
+- name: Adam B. Smith
+  affilnum: 1
+  email: adam.smith@mobot.org
+
+- name: William Godsoe
+  affilnum: 2
+
+- name: Francisco Rodríguez-Sánchez 
+  affilnum: 3
+
+- name: Hsiao-Hsuan Wang
+  affilnum: 4
+
+- name: Dan Warren
+  affilnum: '5,6'
+  
+
+affiliation:
+  
+- affilnum: 1
+  affil: Center for Conservation and Sustainable Development, Missouri Botanical Garden, 4344 Shaw Boulevard, Saint Louis, MO 63116 USA
+  
+- affilnum: 2
+  affil: BioProtection Research Centre, Burns Building Lincoln University, Ellesmere Junction Road/Springs Road Lincoln University, Lincoln, New Zealand
+  
+- affilnum: 3
+  affil: Department of Integrative Ecology, Estación Biológica de Doñana, Consejo Superior de Investigaciones Científicas, Avda. Américo Vespucio 26, 41092 Sevilla, Spain
+  
+- affilnum: 4
+  affil: Department of Wildlife and Fisheries Sciences, Texas A&M University, 534 John Kimbrough Blvd., Building 1537, 2258 TAMU, College Station, Texas 77843, USA
+  
+- affilnum: 5
+  affil: Senckenberg Biodiversity and Climate Research Center (SBiK-F), Frankfurt am Main, Germany
+  
+- affilnum: 6
+  affil: Biodiversity and Biocomplexity Unit, Okinawa Institute of Science and Technology, Japan
+
+
+output:
+
+  pdf_document:
+    fig_caption: yes
+    fig_width: 5
+    fig_height: 5
+    keep_tex: yes
+    number_sections: no
+    template: manuscript.latex
+    includes:
+      in_header: header.tex
+
+documentclass: article
+classoption: a4paper
+capsize: normalsize
+fontsize: 11pt
+geometry: margin=1in
+linenumbers: no
+spacing: doublespacing
+footerdate: no
+abstract: no
+---
+
+
+## R code for 'Comparison of splitting, lumping, partial pooling, and phylogenetically-informed pooling on a simulated dataset' (*Box 3*)
+
+This source code is archived in Zenodo (Rodríguez-Sánchez 2018) and can also be found at https://github.com/Pakillo/phyloENM-TREE.
+
+
+### Simulate taxa niches and phylogeny
+
+Here we simulate (following Pearse *et al.* 2016) a group of phylogenetically related taxa with different sentivities to temperature, so that closely related taxa will have more similar niches.
+
+
+```{r}
+
+nspp <- 6
+nsite <- 30
+
+# simulate a phylogenetic tree
+library(ape)
+set.seed(6)
+phy <- rtree(n = nspp)
+phy <- compute.brlen(phy, method = "Grafen", power = 0.5)
+#plot(phy)
+
+# standardize the phylogenetic covariance matrix to have determinant 1
+Vphy <- vcv(phy)
+Vphy.std <- Vphy/(det(Vphy)^(1/nspp))
+
+# Perform a Cholesky decomposition of Vphy 
+iD <- t(chol(Vphy.std))
+
+# Generate environmental site variable
+env <- seq(0, 20, length.out = nsite)
+
+
+## Set up species-specific regression coefficients as random effects
+
+set.seed(79)
+
+intercept <- iD %*% runif(nspp, -1, 2)
+slope <- iD %*% runif(nspp, -0.4, 0.1)
+
+intercept <- intercept[gtools::mixedorder(rownames(intercept)), ]
+slope <- slope[gtools::mixedorder(rownames(slope)), ]
+
+#intercept
+#slope
+
+## Calculate suitabilities for each taxa and site
+suitab <- rep(intercept, each = nsite)
+suitab <- suitab + rep(slope, each = nsite) * rep(env, nspp)
+suitab.error <- suitab + rnorm(nspp * nsite, mean = 0, sd = 1) #add some random 'error'  
+suitab.invlogit <- arm::invlogit(suitab)
+suitab.error.invlogit <- arm::invlogit(suitab.error)
+
+set.seed(114)
+
+pres <- rbinom(length(suitab.error), size = 1, prob = suitab.error.invlogit)  # pres-abs
+
+dat <- data.frame(taxa = paste("t", sort(rep(1:nspp, nsite)), sep = ""),
+                  site = rep(1:nsite, nspp),
+                  env = rep(env, nspp), 
+                  suitab.invlogit = suitab.invlogit,
+                  presabs = pres)
+
+```
+
+
+### Plot simulated niches
+
+```{r message = FALSE}
+
+library(ggplot2)
+library(cowplot)
+library(viridis)
+
+
+simul.niches <- ggplot(dat, aes(env, suitab.invlogit, colour = taxa)) +
+  ylim(0, 1) +
+  labs(x = "Temperature", y = "Suitability", title = "True niches") +
+  geom_line(size = 2) +
+  scale_color_viridis(discrete = TRUE) + 
+  theme(plot.title = element_text(size = 18)) +
+  theme(legend.position = "none")
+
+simul.niches
+
+```
+
+
+### Plot phylogeny
+
+```{r message=FALSE}
+
+library(ggtree)
+
+phylog <- ggplot(phy) + 
+  geom_tree(size = 2, colour = "grey70") +
+  geom_tree(size = 2, aes(color = label)) + 
+  scale_color_viridis(discrete = "TRUE") +
+  theme(legend.position = "none",
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank()) +
+  labs(title = "Phylogeny") +
+  theme(plot.title = element_text(size = 18)) +
+  theme(plot.margin = unit(c(0.2,1,1,1), "cm"))
+
+phylog
+
+```
+
+
+### Splitting
+
+Here we fit independent binomial generalized linear models (GLM) to each taxon.
+
+```{r}
+
+split <- ggplot(dat, aes(env, presabs, colour = taxa)) +
+  ylim(0, 1) +
+  labs(x = "Temperature", y = "Suitability", title = "Splitting (GLM)") +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, size = 2) +
+  scale_color_viridis(discrete = TRUE) +
+  theme(plot.title = element_text(size = 18)) +
+  theme(legend.position = "none")
+
+split
+
+```
+
+
+### Lumping
+
+Here we fit a single binomial generalized linear model (GLM) to all taxa together.
+
+```{r}
+
+lump <- ggplot(dat, aes(env, presabs)) +
+  ylim(0, 1) +
+  labs(x = "Temperature", y = "Suitability", title = "Lumping (GLM)") +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, size = 3,
+              colour = "black") +
+  # for comparison with real niches:
+  geom_line(aes(env, suitab.invlogit, colour = taxa), size = 2, alpha = 0.2) +
+  scale_color_viridis(discrete = TRUE, guide = guide_legend(override.aes = list(alpha = 1))) +
+  theme(plot.title = element_text(size = 18)) +
+  theme(legend.position = "none")
+
+lump
+
+```
+  
+
+### Pooling (GLMM)
+
+Here we fit a mixed effects model (GLMM) with varying intercepts and slopes, so that there is partial pooling among taxa. 
+
+```{r message=FALSE}
+
+library(lme4)
+
+mixed <- glmer(presabs ~ env + (1 + env | taxa), data = dat, family = binomial)
+# summary(mixed)
+# coef(mixed)
+dat$mixedpred <- fitted(mixed, newdata = dat, type = "response")
+
+mixedfig <- ggplot(dat, aes(env, mixedpred, colour = taxa)) +
+  ylim(0, 1) +
+  labs(x = "Temperature", y = "Suitability", title = "Pooling (GLMM)") + 
+  geom_line(size = 2) +
+  scale_color_viridis(discrete = TRUE) +
+  theme(plot.title = element_text(size = 18)) +
+  theme(legend.position = "none")
+
+mixedfig
+
+```
+
+
+
+### Phylogenetic pooling (PGLMM)
+
+Here we fit a phylogenetic generalized linear model (PGLMM) with varying intercepts and slopes, so that closely related taxa tend to have more similar niches. 
+
+```{r cache=TRUE, message=FALSE}
+
+inv.phylo <- MCMCglmm::inverseA(phy, nodes = "TIPS", scale = TRUE)  
+A <- solve(inv.phylo$Ainv)
+rownames(A) <- rownames(inv.phylo$Ainv)
+
+library(brms)
+
+pglmm <- brm(
+  presabs ~ env + (1 + env | taxa), 
+  data = dat, 
+  family = bernoulli(), 
+  cov_ranef = list(taxa = A),  
+  prior = c(
+    prior(normal(0, 3), "b"),
+    prior(normal(0, 3), "Intercept"),
+    prior(student_t(3, 0, 3), "sd")),  # sd of group random effect
+  chains = 3, cores = 3, iter = 2000,
+  control = list(adapt_delta = 0.95)
+)
+
+
+# summary(pglmm)
+# plot(pglmm)
+# coef(pglmm)
+# pp_check(pglmm)
+
+dat$pglmm <- fitted(pglmm, newdata = dat, scale = "response")[,1]
+```
+
+```{r}
+
+pglmmfig <- ggplot(dat, aes(env, pglmm, colour = taxa)) +
+  ylim(0, 1) +
+  labs(x = "Temperature", y = "Suitability", title = "Phylogenetic Pooling (PGLMM)") + 
+  geom_line(size = 2) +
+  scale_color_viridis(discrete = TRUE) +
+  theme(plot.title = element_text(size = 18)) +
+  theme(legend.position = "none")
+
+pglmmfig
+
+```
+
+
+### Combined figure
+
+```{r out.height='9in', out.width='7in'}
+
+figure <- plot_grid(simul.niches, phylog, 
+                    split, lump,
+                    mixedfig, pglmmfig, 
+                    nrow = 3, ncol = 2)
+
+#figure 
+
+save_plot(paste0("FigureBox3", ".pdf"), figure, base_height = 11, base_width = 9)
+
+```
+
+
+
+### References and software used
+
+
+Bates, Douglas, Martin Mächler, Ben Bolker, and Steve Walker. 2015. “Fitting Linear Mixed-Effects Models Using lme4.” Journal of Statistical Software 67 (1): 1–48. doi:10.18637/jss.v067.i01.
+
+Bürkner, Paul-Christian. 2017. “brms: An R Package for Bayesian Multilevel Models Using Stan.” Journal of Statistical Software 80 (1): 1–28. doi:10.18637/jss.v080.i01.
+
+Garnier, Simon. 2018. Viridis: Default Color Maps from ’Matplotlib’. https://CRAN.R-project.org/package=viridis.
+
+Hadfield, Jarrod D. 2010. “MCMC Methods for Multi-Response Generalized Linear Mixed Models: The MCMCglmm R Package.” Journal of Statistical Software 33 (2): 1–22. http://www.jstatsoft.org/v33/i02/.
+
+Paradis, E., J. Claude, and K. Strimmer. 2004. “APE: Analyses of Phylogenetics and Evolution in R Language.” Bioinformatics 20: 289–90.
+
+Pearse WD, MW Cadotte, J Cavender-Bares, AR Ives, C Tucker, S Walker & MR Helmus. 2016. A gentle introduction to Phylogenetic Generalised Linear Mixed Models. https://cran.r-project.org/web/packages/pez/vignettes/pez-pglmm-overview.pdf
+
+R Core Team. 2018. R: A Language and Environment for Statistical Computing. Vienna, Austria: R Foundation for Statistical Computing. https://www.R-project.org/.
+
+Rodríguez-Sánchez F. 2018. R code for comparing splitting, lumping, partial pooling, and phylogenetically-informed ecological niche models. Zenodo. DOI: 
+
+Wickham, Hadley. 2009. Ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. http://ggplot2.org.
+
+Wilke, Claus O. 2017. Cowplot: Streamlined Plot Theme and Plot Annotations for ’Ggplot2’. https://CRAN.R-project.org/package=cowplot.
+
+Xie, Yihui. 2018. Knitr: A General-Purpose Package for Dynamic Report Generation in R. https://yihui.name/knitr/.
+
+Yu, Guangchuang, David Smith, Huachen Zhu, Yi Guan, and Tommy Tsan-Yuk Lam. 2017. “Ggtree: An R Package for Visualization and Annotation of Phylogenetic Trees with Their Covariates and Other Associated Data.” Methods in Ecology and Evolution. doi:10.1111/2041-210X.12628.
+
+
+
+
+
+
+### Details on computation environment
+
+```{r echo=FALSE}
+sessioninfo::session_info()
+```
+
