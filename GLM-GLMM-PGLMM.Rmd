@@ -269,7 +269,7 @@ pglmm <- brm(
     prior(normal(0, 3), "Intercept"),
     prior(student_t(3, 0, 3), "sd")),  # sd of group random effect
   chains = 3, cores = 3, iter = 2000,
-  control = list(adapt_delta = 0.95)
+  control = list(adapt_delta = 0.96)
 )
 
 
@@ -330,7 +330,7 @@ Pearse WD, MW Cadotte, J Cavender-Bares, AR Ives, C Tucker, S Walker & MR Helmus
 
 R Core Team. 2018. R: A Language and Environment for Statistical Computing. Vienna, Austria: R Foundation for Statistical Computing. https://www.R-project.org/.
 
-Rodríguez-Sánchez F. 2018. R code for comparing splitting, lumping, partial pooling, and phylogenetically-informed ecological niche models. Zenodo. DOI: 
+Rodríguez-Sánchez F. 2018. R code for comparing splitting, lumping, partial pooling, and phylogenetically-informed ecological niche models (version 1.1). Zenodo. http://doi.org/10.5281/zenodo.1470855 
 
 Wickham, Hadley. 2009. Ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. http://ggplot2.org.
 
