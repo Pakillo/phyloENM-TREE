@@ -67,7 +67,7 @@ abstract: no
 ---
 
 
-## R code for 'Comparison of splitting, lumping, partial pooling, and phylogenetically-informed pooling on a simulated dataset' (*Box 3*)
+## R code for comparing splitting, lumping, partial pooling, and phylogenetically-informed ecological niche models on a simulated dataset (*Box 3*)
 
 This source code is archived in Zenodo (Rodríguez-Sánchez 2018) and can also be found at https://github.com/Pakillo/phyloENM-TREE.
 
