@@ -6,7 +6,7 @@ Comparing independent, partial pooling, and phylogenetically-informed ecological
 
 Supplemental Material to the following article:
 
-Smith A, Godsoe W, Rodríguez-Sánchez F, Wang H, Warren DL. (2019) Niche estimation above and below the species level. *Trends in Ecology and Evolution*, in press.
+Smith A, Godsoe W, Rodríguez-Sánchez F, Wang H, Warren DL. (2019) Niche estimation above and below the species level. *Trends in Ecology and Evolution*, in press. https://doi.org/10.1016/j.tree.2018.10.012
 
 Citation of this supplement:
 
