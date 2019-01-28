@@ -257,13 +257,15 @@ inv.phylo <- MCMCglmm::inverseA(phy, nodes = "TIPS", scale = TRUE)
 A <- solve(inv.phylo$Ainv)
 rownames(A) <- rownames(inv.phylo$Ainv)
 
+dat$phylo <- dat$taxa
+
 library(brms)
 
 pglmm <- brm(
-  presabs ~ env + (1 + env | taxa), 
+  presabs ~ env + (1 + env | phylo) + (1 + env | taxa), 
   data = dat, 
   family = bernoulli(), 
-  cov_ranef = list(taxa = A),  
+  cov_ranef = list(phylo = A),  
   prior = c(
     prior(normal(0, 3), "b"),
     prior(normal(0, 3), "Intercept"),
